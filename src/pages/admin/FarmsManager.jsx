@@ -1,7 +1,8 @@
+// src/pages/admin/FarmsManager.jsx
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { MapPin, Plus, Edit, Trash2, Search } from 'lucide-react';
-import { useAdmin } from '../../contexts/AdminContext';
+import { useAdmin } from '../../hooks/useAdmin';
 
 const FarmsManager = () => {
   const { config, addFarm, updateFarm, deleteFarm, loading } = useAdmin();
@@ -16,7 +17,7 @@ const FarmsManager = () => {
     reset
   } = useForm();
 
-  const filteredFarms = config.farms.filter(farm =>
+  const filteredFarms = (config?.farms || []).filter(farm =>
     farm.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     farm.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -43,7 +44,10 @@ const FarmsManager = () => {
 
   const handleDeleteFarm = async (farmId) => {
     if (window.confirm('Are you sure you want to delete this farm? This action cannot be undone.')) {
-      await deleteFarm(farmId);
+      const result = await deleteFarm(farmId);
+      if (!result.success) {
+        alert(result.error || 'Failed to delete farm');
+      }
     }
   };
 
@@ -58,12 +62,27 @@ const FarmsManager = () => {
     if (result.success) {
       setIsModalOpen(false);
       reset();
+    } else {
+      alert(result.error || 'Failed to save farm');
     }
   };
 
   const getProductCount = (farmName) => {
-    return config.products.filter(product => product.farm === farmName).length;
+    return (config?.products || []).filter(product => product.farm === farmName).length;
   };
+
+  if (!config) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="animate-pulse">
+            <div className="h-6 bg-gray-200 rounded w-1/4 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

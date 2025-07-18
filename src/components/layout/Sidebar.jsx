@@ -1,3 +1,4 @@
+// src\components\layout\Sidebar.jsx
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
@@ -11,7 +12,7 @@ import {
   User,
   X
 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 
 const Sidebar = ({ open, setOpen }) => {
   const location = useLocation();

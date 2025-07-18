@@ -1,7 +1,8 @@
+// src/pages/admin/SocialMediaManager.jsx
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Share2, Plus, Edit, Trash2, Search, ExternalLink } from 'lucide-react';
-import { useAdmin } from '../../contexts/AdminContext';
+import { useAdmin } from '../../hooks/useAdmin';
 
 const SocialMediaManager = () => {
   const { config, addSocialMedia, updateSocialMedia, deleteSocialMedia, loading } = useAdmin();
@@ -16,7 +17,7 @@ const SocialMediaManager = () => {
     reset
   } = useForm();
 
-  const filteredSocials = config.socialMediaLinks.filter(social =>
+  const filteredSocials = (config?.socialMediaLinks || []).filter(social =>
     social.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     social.url.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -45,7 +46,10 @@ const SocialMediaManager = () => {
 
   const handleDeleteSocial = async (socialId) => {
     if (window.confirm('Are you sure you want to delete this social media link?')) {
-      await deleteSocialMedia(socialId);
+      const result = await deleteSocialMedia(socialId);
+      if (!result.success) {
+        alert(result.error || 'Failed to delete social media link');
+      }
     }
   };
 
@@ -60,6 +64,8 @@ const SocialMediaManager = () => {
     if (result.success) {
       setIsModalOpen(false);
       reset();
+    } else {
+      alert(result.error || 'Failed to save social media link');
     }
   };
 
@@ -82,6 +88,19 @@ const SocialMediaManager = () => {
       color: preset.color
     });
   };
+
+  if (!config) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="animate-pulse">
+            <div className="h-6 bg-gray-200 rounded w-1/4 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

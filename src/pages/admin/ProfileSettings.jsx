@@ -1,7 +1,8 @@
+// src\pages\admin\ProfileSettings.jsx
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { User, Mail, Lock, Save, Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 
 const ProfileSettings = () => {
   const { user, updateProfile, changePassword } = useAuth();

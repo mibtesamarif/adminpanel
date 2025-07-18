@@ -1,108 +1,90 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+// src/contexts/AuthContext.jsx
+import React, { createContext, useState, useEffect } from 'react';
+import apiService from '../services/api';
 
-const AuthContext = createContext();
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Default admin user (for static version)
-  const defaultAdmin = {
-    id: 1,
-    username: 'admin',
-    email: 'admin@cbdshop.com',
-    password: 'admin123', // In production, this should be hashed
-    role: 'admin',
-    createdAt: new Date().toISOString(),
-    lastLogin: null
-  };
-
   useEffect(() => {
-    // Check for existing session
-    const savedUser = localStorage.getItem('admin_user');
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error('Error parsing saved user:', error);
-        localStorage.removeItem('admin_user');
+    // Check for existing session and verify token
+    const initAuth = async () => {
+      const token = localStorage.getItem('admin_token');
+      if (token) {
+        try {
+          const response = await apiService.verifyToken();
+          if (response.success) {
+            setUser(response.user);
+          } else {
+            // Token is invalid, remove it
+            localStorage.removeItem('admin_token');
+          }
+        } catch (error) {
+          console.error('Token verification failed:', error);
+          localStorage.removeItem('admin_token');
+        }
       }
-    }
-    setLoading(false);
+      setLoading(false);
+    };
+
+    initAuth();
   }, []);
 
   const login = async (credentials) => {
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await apiService.login(credentials);
       
-      const { username, password } = credentials;
-      
-      // Simple validation against default admin
-      if (username === defaultAdmin.username && password === defaultAdmin.password) {
-        const userSession = {
-          ...defaultAdmin,
-          lastLogin: new Date().toISOString()
-        };
-        
-        // Remove password from session data
-        const { password: _, ...userWithoutPassword } = userSession;
-        
-        setUser(userWithoutPassword);
-        localStorage.setItem('admin_user', JSON.stringify(userWithoutPassword));
-        
-        return { success: true, user: userWithoutPassword };
+      if (response.success) {
+        setUser(response.user);
+        localStorage.setItem('admin_token', response.token);
+        return { success: true, user: response.user };
       } else {
-        return { success: false, error: 'Invalid credentials' };
+        return { success: false, error: response.message || 'Login failed' };
       }
     } catch (error) {
-      return { success: false, error: 'Login failed' };
+      console.error('Login error:', error);
+      return { success: false, error: error.message || 'Login failed' };
     }
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('admin_user');
+    localStorage.removeItem('admin_token');
   };
 
   const updateProfile = async (updates) => {
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const response = await apiService.updateProfile(updates);
       
-      const updatedUser = { ...user, ...updates };
-      setUser(updatedUser);
-      localStorage.setItem('admin_user', JSON.stringify(updatedUser));
-      
-      return { success: true, user: updatedUser };
+      if (response.success) {
+        setUser(response.user || { ...user, ...updates });
+        return { success: true, user: response.user || { ...user, ...updates } };
+      } else {
+        return { success: false, error: response.message || 'Profile update failed' };
+      }
     } catch (error) {
-      return { success: false, error: 'Profile update failed' };
+      console.error('Profile update error:', error);
+      return { success: false, error: error.message || 'Profile update failed' };
     }
   };
 
   const changePassword = async (currentPassword, newPassword) => {
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const response = await apiService.changePassword({
+        currentPassword,
+        newPassword
+      });
       
-      // In static version, just simulate success
-      // In production, this would validate current password and update
-      if (currentPassword === defaultAdmin.password) {
-        return { success: true, message: 'Password updated successfully' };
+      if (response.success) {
+        return { success: true, message: response.message || 'Password updated successfully' };
       } else {
-        return { success: false, error: 'Current password is incorrect' };
+        return { success: false, error: response.message || 'Password change failed' };
       }
     } catch (error) {
-      return { success: false, error: 'Password change failed' };
+      console.error('Password change error:', error);
+      return { success: false, error: error.message || 'Password change failed' };
     }
   };
 

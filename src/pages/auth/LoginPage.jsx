@@ -1,6 +1,7 @@
+// src\pages\auth\LoginPage.jsx
 import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { Eye, EyeOff, Lock, User } from 'lucide-react';
 
 const LoginPage = () => {

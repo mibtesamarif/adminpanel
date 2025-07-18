@@ -1,6 +1,7 @@
+// src\components\layout\Header.jsx
 import React from 'react';
 import { Menu, LogOut, Bell } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 
 const Header = ({ onMenuClick }) => {
   const { user, logout } = useAuth();

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+// src/pages/admin/ShopSettings.jsx
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { Settings, Save, Palette, Globe, Mail, Phone } from 'lucide-react';
-import { useAdmin } from '../../contexts/AdminContext';
+import { Settings, Save, Palette, Globe, Mail } from 'lucide-react';
+import { useAdmin } from '../../hooks/useAdmin';
 
 const ShopSettings = () => {
   const { config, updateShopSettings, loading } = useAdmin();
@@ -12,17 +13,23 @@ const ShopSettings = () => {
     register,
     handleSubmit,
     formState: { errors },
-    watch
-  } = useForm({
-    defaultValues: {
-      shopInfo: config.shopInfo,
-      contactInfo: config.contactInfo,
-      adminSettings: config.adminSettings,
-      pageContent: config.pageContent
-    }
-  });
+    watch,
+    reset
+  } = useForm();
 
   const watchedPrimaryColor = watch('shopInfo.primaryColor');
+
+  // Reset form with config data when config loads
+  useEffect(() => {
+    if (config) {
+      reset({
+        shopInfo: config.shopInfo || {},
+        contactInfo: config.contactInfo || {},
+        adminSettings: config.adminSettings || {},
+        pageContent: config.pageContent || {}
+      });
+    }
+  }, [config, reset]);
 
   const onSubmit = async (data) => {
     setMessage('');
@@ -30,6 +37,8 @@ const ShopSettings = () => {
     
     if (result.success) {
       setMessage('Settings updated successfully!');
+      // Clear message after 3 seconds
+      setTimeout(() => setMessage(''), 3000);
     } else {
       setMessage(`Error: ${result.error}`);
     }
@@ -41,6 +50,19 @@ const ShopSettings = () => {
     { id: 'contact', name: 'Contact', icon: Mail },
     { id: 'content', name: 'Content', icon: Settings }
   ];
+
+  if (!config) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="animate-pulse">
+            <div className="h-6 bg-gray-200 rounded w-1/4 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -97,6 +119,7 @@ const ShopSettings = () => {
                     {...register('shopInfo.name', { required: 'Shop name is required' })}
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    defaultValue={config.shopInfo?.name || ''}
                   />
                   {errors.shopInfo?.name && (
                     <p className="mt-1 text-sm text-red-600">{errors.shopInfo.name.message}</p>
@@ -112,6 +135,7 @@ const ShopSettings = () => {
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="🌿"
+                    defaultValue={config.shopInfo?.logo || ''}
                   />
                 </div>
               </div>
@@ -124,6 +148,7 @@ const ShopSettings = () => {
                   {...register('shopInfo.description')}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  defaultValue={config.shopInfo?.description || ''}
                 />
               </div>
 
@@ -136,6 +161,7 @@ const ShopSettings = () => {
                   type="url"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="https://example.com/logo.png"
+                  defaultValue={config.shopInfo?.logoUrl || ''}
                 />
               </div>
             </div>
@@ -153,11 +179,13 @@ const ShopSettings = () => {
                       {...register('shopInfo.primaryColor')}
                       type="color"
                       className="h-10 w-16 border border-gray-300 rounded-md"
+                      defaultValue={config.shopInfo?.primaryColor || '#000000'}
                     />
                     <input
                       {...register('shopInfo.primaryColor')}
                       type="text"
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      defaultValue={config.shopInfo?.primaryColor || '#000000'}
                     />
                   </div>
                 </div>
@@ -171,11 +199,13 @@ const ShopSettings = () => {
                       {...register('shopInfo.secondaryColor')}
                       type="color"
                       className="h-10 w-16 border border-gray-300 rounded-md"
+                      defaultValue={config.shopInfo?.secondaryColor || '#ffffff'}
                     />
                     <input
                       {...register('shopInfo.secondaryColor')}
                       type="text"
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      defaultValue={config.shopInfo?.secondaryColor || '#ffffff'}
                     />
                   </div>
                 </div>
@@ -190,6 +220,7 @@ const ShopSettings = () => {
                   type="url"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="https://example.com/background.jpg"
+                  defaultValue={config.shopInfo?.backgroundImage || ''}
                 />
               </div>
 
@@ -199,7 +230,7 @@ const ShopSettings = () => {
                 <div className="flex items-center space-x-4">
                   <div 
                     className="w-16 h-16 rounded-lg border"
-                    style={{ backgroundColor: watchedPrimaryColor }}
+                    style={{ backgroundColor: watchedPrimaryColor || config.shopInfo?.primaryColor || '#000000' }}
                   ></div>
                   <div>
                     <p className="text-sm font-medium text-gray-900">Primary Color</p>
@@ -226,6 +257,7 @@ const ShopSettings = () => {
                     })}
                     type="email"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    defaultValue={config.contactInfo?.email || ''}
                   />
                   {errors.contactInfo?.email && (
                     <p className="mt-1 text-sm text-red-600">{errors.contactInfo.email.message}</p>
@@ -240,6 +272,7 @@ const ShopSettings = () => {
                     {...register('contactInfo.phone')}
                     type="tel"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    defaultValue={config.contactInfo?.phone || ''}
                   />
                 </div>
               </div>
@@ -258,6 +291,7 @@ const ShopSettings = () => {
                   type="url"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="https://wa.me/33123456789"
+                  defaultValue={config.contactInfo?.orderLink || ''}
                 />
                 {errors.contactInfo?.orderLink && (
                   <p className="mt-1 text-sm text-red-600">{errors.contactInfo.orderLink.message}</p>
@@ -272,6 +306,7 @@ const ShopSettings = () => {
                   {...register('contactInfo.orderText')}
                   type="text"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  defaultValue={config.contactInfo?.orderText || ''}
                 />
               </div>
             </div>
@@ -290,6 +325,7 @@ const ShopSettings = () => {
                       {...register('pageContent.homepage.heroTitle')}
                       type="text"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      defaultValue={config.pageContent?.homepage?.heroTitle || ''}
                     />
                   </div>
 
@@ -301,6 +337,7 @@ const ShopSettings = () => {
                       {...register('pageContent.homepage.heroSubtitle')}
                       rows={2}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      defaultValue={config.pageContent?.homepage?.heroSubtitle || ''}
                     />
                   </div>
 
@@ -312,6 +349,7 @@ const ShopSettings = () => {
                       {...register('pageContent.homepage.heroButtonText')}
                       type="text"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      defaultValue={config.pageContent?.homepage?.heroButtonText || ''}
                     />
                   </div>
                 </div>
@@ -328,6 +366,7 @@ const ShopSettings = () => {
                       {...register('adminSettings.categoriesButtonText')}
                       type="text"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      defaultValue={config.adminSettings?.categoriesButtonText || ''}
                     />
                   </div>
 
@@ -339,6 +378,7 @@ const ShopSettings = () => {
                       {...register('adminSettings.farmsButtonText')}
                       type="text"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      defaultValue={config.adminSettings?.farmsButtonText || ''}
                     />
                   </div>
                 </div>

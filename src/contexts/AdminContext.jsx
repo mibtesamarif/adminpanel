@@ -1,550 +1,345 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+// Enhanced AdminContext.jsx with deleteMedia functionality
 
-const AdminContext = createContext();
+import React, { createContext, useState, useEffect } from 'react';
+import apiService from '../services/api';
+import { useAuth } from '../hooks/useAuth';
+import { getDefaultConfig } from '../config/defaultConfig';
 
-export const useAdmin = () => {
-  const context = useContext(AdminContext);
-  if (!context) {
-    throw new Error('useAdmin must be used within an AdminProvider');
-  }
-  return context;
-};
-
-// Default configuration data
-const defaultConfig = {
-  shopInfo: {
-    name: "CBD Shop Premium",
-    description: "Votre boutique CBD de confiance",
-    logo: "🌿",
-    logoUrl: "",
-    primaryColor: "#000000",
-    secondaryColor: "#ffffff",
-    textColor: "#ffffff",
-    backgroundColor: "#ffffff",
-    backgroundImage: ""
-  },
-  contactInfo: {
-    orderLink: "https://wa.me/33123456789",
-    orderText: "Commandez maintenant",
-    email: "contact@cbdshop.fr",
-    phone: "+33 1 23 45 67 89"
-  },
-  socialMediaLinks: [
-    {
-      id: 1,
-      name: "Instagram",
-      emoji: "📸",
-      url: "https://instagram.com/cbdshop",
-      color: "#E4405F"
-    },
-    {
-      id: 2,
-      name: "Facebook",
-      emoji: "📘",
-      url: "https://facebook.com/cbdshop",
-      color: "#1877F2"
-    },
-    {
-      id: 3,
-      name: "WhatsApp",
-      emoji: "💬",
-      url: "https://wa.me/33123456789",
-      color: "#25D366"
-    }
-  ],
-  categories: [
-    {
-      id: 1,
-      name: "Huiles",
-      emoji: "💧",
-      description: "Huiles CBD de qualité premium"
-    },
-    {
-      id: 2,
-      name: "Fleurs",
-      emoji: "🌸",
-      description: "Fleurs CBD séchées naturelles"
-    },
-    {
-      id: 3,
-      name: "Résines",
-      emoji: "🟤",
-      description: "Résines CBD artisanales"
-    },
-    {
-      id: 4,
-      name: "Boutique",
-      emoji: "🌾",
-      description: "Produits exclusifs CBD"
-    },
-    {
-      id: 5,
-      name: "Farm",
-      emoji: "🏡",
-      description: "Produits CBD de nos fermes partenaires"
-    }
-  ],
-  farms: [
-    {
-      id: 1,
-      name: "Mountain",
-      emoji: "🏔️",
-      description: "Produits CBD de la ferme Mountain"
-    },
-    {
-      id: 2,
-      name: "Valley",
-      emoji: "🏞️",
-      description: "Produits CBD de la ferme Valley"
-    },
-    {
-      id: 3,
-      name: "Forest",
-      emoji: "🌲",
-      description: "Produits CBD de la ferme Forest"
-    },
-    {
-      id: 4,
-      name: "Riverside",
-      emoji: "🌊",
-      description: "Produits CBD de la ferme Riverside"
-    }
-  ],
-  pages: [
-    {
-      id: 1,
-      name: "Accueil",
-      href: "/",
-      isDefault: true
-    },
-    {
-      id: 2,
-      name: "Produits",
-      href: "/produits",
-      isDefault: true
-    },
-    {
-      id: 3,
-      name: "Contact",
-      href: "/contact",
-      isDefault: true
-    },
-    {
-      id: 4,
-      name: "Réseaux Sociaux",
-      href: "/reseaux-sociaux",
-      isDefault: true
-    }
-  ],
-  products: [
-    {
-      id: 1,
-      name: "Huile CBD",
-      description: "Huile de CBD premium, extraction CO2 supercritique.",
-      image: "https://images.unsplash.com/photo-1587736793948-7b6b17f06c8d?w=400&h=400&fit=crop",
-      images: [
-        "https://images.unsplash.com/photo-1587736793948-7b6b17f06c8d?w=400&h=400&fit=crop",
-        "https://images.unsplash.com/photo-1587736793948-7b6b17f06c8d?w=500&h=500&fit=crop"
-      ],
-      video: "",
-      category: "Huiles",
-      variants: [
-        { name: "10%", price: 29.90, size: "10ml" },
-        { name: "15%", price: 39.90, size: "10ml" },
-        { name: "20%", price: 49.90, size: "10ml" }
-      ],
-      orderLink: "https://wa.me/33123456789",
-      popular: true
-    },
-    // Add more products...
-  ],
-  adminSettings: {
-    categoriesTabName: "Catégories",
-    farmsTabName: "Fermes",
-    categoriesButtonText: "Catégories",
-    farmsButtonText: "Fermes"
-  },
-  pageContent: {
-    homepage: {
-      heroTitle: "Produits CBD Premium",
-      heroSubtitle: "Découvrez notre sélection de produits CBD de qualité supérieure",
-      heroButtonText: "Voir nos produits",
-      sectionTitle: "Nos Produits Populaires",
-      categoriesLabel: "Types de produits",
-      farmLabel: "Boutique",
-      allCategoriesLabel: "Tous nos produits",
-      farmProductsLabel: "Produits exclusifs"
-    },
-    contact: {
-      title: "Contactez-nous",
-      subtitle: "Nous sommes là pour vous aider",
-      description: "Pour toute commande ou question, contactez-nous directement via notre plateforme de commande."
-    },
-    socialMedia: {
-      title: "Suivez-nous sur les réseaux sociaux",
-      subtitle: "Restez connecté avec nous pour les dernières actualités et offres exclusives"
-    },
-    footer: {
-      copyrightText: "© 2024 CBD Shop Premium. Tous droits réservés."
-    },
-    products: {
-      filterTitle: "Filtrer par catégorie",
-      popularText: "Populaire",
-      detailsText: "Voir détails",
-      orderText: "Commander maintenant",
-      pageTitle: "Nos Produits",
-      pageSubtitle: "Découvrez notre gamme complète de produits CBD"
-    }
-  }
-};
+export const AdminContext = createContext();
 
 export const AdminProvider = ({ children }) => {
-  const [config, setConfig] = useState(defaultConfig);
+  const { user, loading: authLoading } = useAuth();
+  const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [dashboardData, setDashboardData] = useState(null);
 
-  // Load config from localStorage on mount
-  useEffect(() => {
-    const savedConfig = localStorage.getItem('admin_config');
-    if (savedConfig) {
-      try {
-        const parsedConfig = JSON.parse(savedConfig);
-        setConfig(parsedConfig);
-      } catch (error) {
-        console.error('Error parsing saved config:', error);
-      }
+  // Load configuration from API
+  const loadConfig = async () => {
+    if (!user) return;
+    
+    try {
+      setLoading(true);
+      const response = await apiService.getAdminConfig();
+      setConfig(response);
+    } catch (error) {
+      console.error('Failed to load config:', error);
+      setConfig(getDefaultConfig());
+    } finally {
+      setLoading(false);
     }
-  }, []);
-
-  // Save config to localStorage whenever it changes
-  const saveConfig = (newConfig) => {
-    setConfig(newConfig);
-    localStorage.setItem('admin_config', JSON.stringify(newConfig));
   };
 
-  // Helper function to get next ID
-  const getNextId = (items) => {
-    if (items.length === 0) return 1;
-    return Math.max(...items.map(item => item.id)) + 1;
+  // Load dashboard data
+  const loadDashboard = async () => {
+    if (!user) return;
+    
+    try {
+      const response = await apiService.getDashboard();
+      setDashboardData(response);
+    } catch (error) {
+      console.error('Failed to load dashboard:', error);
+    }
   };
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      loadConfig();
+      loadDashboard();
+    } else if (!authLoading && !user) {
+      setConfig(null);
+      setDashboardData(null);
+    }
+  }, [user, authLoading]);
 
   // Products CRUD operations
   const addProduct = async (product) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API delay
-      
-      const newProduct = {
-        ...product,
-        id: getNextId(config.products),
-        createdAt: new Date().toISOString()
-      };
-      
-      const newConfig = {
-        ...config,
-        products: [...config.products, newProduct]
-      };
-      
-      saveConfig(newConfig);
-      setLoading(false);
-      return { success: true, product: newProduct };
+      const response = await apiService.createProduct(product);
+      await loadConfig();
+      await loadDashboard();
+      return { success: true, product: response };
     } catch (error) {
+      console.error('Failed to add product:', error);
+      return { success: false, error: error.message || 'Failed to add product' };
+    } finally {
       setLoading(false);
-      return { success: false, error: 'Failed to add product' };
     }
   };
 
   const updateProduct = async (id, updates) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const updatedProducts = config.products.map(product =>
-        product.id === id ? { ...product, ...updates, updatedAt: new Date().toISOString() } : product
-      );
-      
-      const newConfig = {
-        ...config,
-        products: updatedProducts
-      };
-      
-      saveConfig(newConfig);
-      setLoading(false);
-      return { success: true };
+      const response = await apiService.updateProduct(id, updates);
+      await loadConfig();
+      await loadDashboard();
+      return { success: true, product: response };
     } catch (error) {
+      console.error('Failed to update product:', error);
+      return { success: false, error: error.message || 'Failed to update product' };
+    } finally {
       setLoading(false);
-      return { success: false, error: 'Failed to update product' };
     }
   };
 
   const deleteProduct = async (id) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const filteredProducts = config.products.filter(product => product.id !== id);
-      
-      const newConfig = {
-        ...config,
-        products: filteredProducts
-      };
-      
-      saveConfig(newConfig);
-      setLoading(false);
+      await apiService.deleteProduct(id);
+      await loadConfig();
+      await loadDashboard();
       return { success: true };
     } catch (error) {
+      console.error('Failed to delete product:', error);
+      return { success: false, error: error.message || 'Failed to delete product' };
+    } finally {
       setLoading(false);
-      return { success: false, error: 'Failed to delete product' };
     }
   };
 
   // Categories CRUD operations
   const addCategory = async (category) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const newCategory = {
-        ...category,
-        id: getNextId(config.categories)
-      };
-      
-      const newConfig = {
-        ...config,
-        categories: [...config.categories, newCategory]
-      };
-      
-      saveConfig(newConfig);
-      setLoading(false);
-      return { success: true, category: newCategory };
+      const response = await apiService.createCategory(category);
+      await loadConfig();
+      return { success: true, category: response };
     } catch (error) {
+      console.error('Failed to add category:', error);
+      return { success: false, error: error.message || 'Failed to add category' };
+    } finally {
       setLoading(false);
-      return { success: false, error: 'Failed to add category' };
     }
   };
 
   const updateCategory = async (id, updates) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const updatedCategories = config.categories.map(category =>
-        category.id === id ? { ...category, ...updates } : category
-      );
-      
-      const newConfig = {
-        ...config,
-        categories: updatedCategories
-      };
-      
-      saveConfig(newConfig);
-      setLoading(false);
-      return { success: true };
+      const response = await apiService.updateCategory(id, updates);
+      await loadConfig();
+      return { success: true, category: response };
     } catch (error) {
+      console.error('Failed to update category:', error);
+      return { success: false, error: error.message || 'Failed to update category' };
+    } finally {
       setLoading(false);
-      return { success: false, error: 'Failed to update category' };
     }
   };
 
   const deleteCategory = async (id) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const filteredCategories = config.categories.filter(category => category.id !== id);
-      
-      const newConfig = {
-        ...config,
-        categories: filteredCategories
-      };
-      
-      saveConfig(newConfig);
-      setLoading(false);
+      await apiService.deleteCategory(id);
+      await loadConfig();
       return { success: true };
     } catch (error) {
+      console.error('Failed to delete category:', error);
+      return { success: false, error: error.message || 'Failed to delete category' };
+    } finally {
       setLoading(false);
-      return { success: false, error: 'Failed to delete category' };
     }
   };
 
   // Farms CRUD operations
   const addFarm = async (farm) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const newFarm = {
-        ...farm,
-        id: getNextId(config.farms)
-      };
-      
-      const newConfig = {
-        ...config,
-        farms: [...config.farms, newFarm]
-      };
-      
-      saveConfig(newConfig);
-      setLoading(false);
-      return { success: true, farm: newFarm };
+      const response = await apiService.createFarm(farm);
+      await loadConfig();
+      return { success: true, farm: response };
     } catch (error) {
+      console.error('Failed to add farm:', error);
+      return { success: false, error: error.message || 'Failed to add farm' };
+    } finally {
       setLoading(false);
-      return { success: false, error: 'Failed to add farm' };
     }
   };
 
   const updateFarm = async (id, updates) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const updatedFarms = config.farms.map(farm =>
-        farm.id === id ? { ...farm, ...updates } : farm
-      );
-      
-      const newConfig = {
-        ...config,
-        farms: updatedFarms
-      };
-      
-      saveConfig(newConfig);
-      setLoading(false);
-      return { success: true };
+      const response = await apiService.updateFarm(id, updates);
+      await loadConfig();
+      return { success: true, farm: response };
     } catch (error) {
+      console.error('Failed to update farm:', error);
+      return { success: false, error: error.message || 'Failed to update farm' };
+    } finally {
       setLoading(false);
-      return { success: false, error: 'Failed to update farm' };
     }
   };
 
   const deleteFarm = async (id) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const filteredFarms = config.farms.filter(farm => farm.id !== id);
-      
-      const newConfig = {
-        ...config,
-        farms: filteredFarms
-      };
-      
-      saveConfig(newConfig);
-      setLoading(false);
+      await apiService.deleteFarm(id);
+      await loadConfig();
       return { success: true };
     } catch (error) {
+      console.error('Failed to delete farm:', error);
+      return { success: false, error: error.message || 'Failed to delete farm' };
+    } finally {
       setLoading(false);
-      return { success: false, error: 'Failed to delete farm' };
     }
   };
 
   // Social Media CRUD operations
   const addSocialMedia = async (social) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const newSocial = {
-        ...social,
-        id: getNextId(config.socialMediaLinks)
-      };
-      
-      const newConfig = {
-        ...config,
-        socialMediaLinks: [...config.socialMediaLinks, newSocial]
-      };
-      
-      saveConfig(newConfig);
-      setLoading(false);
-      return { success: true, social: newSocial };
+      const response = await apiService.createSocialMedia(social);
+      await loadConfig();
+      return { success: true, social: response };
     } catch (error) {
+      console.error('Failed to add social media:', error);
+      return { success: false, error: error.message || 'Failed to add social media' };
+    } finally {
       setLoading(false);
-      return { success: false, error: 'Failed to add social media' };
     }
   };
 
   const updateSocialMedia = async (id, updates) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const updatedSocials = config.socialMediaLinks.map(social =>
-        social.id === id ? { ...social, ...updates } : social
-      );
-      
-      const newConfig = {
-        ...config,
-        socialMediaLinks: updatedSocials
-      };
-      
-      saveConfig(newConfig);
-      setLoading(false);
-      return { success: true };
+      const response = await apiService.updateSocialMedia(id, updates);
+      await loadConfig();
+      return { success: true, social: response };
     } catch (error) {
+      console.error('Failed to update social media:', error);
+      return { success: false, error: error.message || 'Failed to update social media' };
+    } finally {
       setLoading(false);
-      return { success: false, error: 'Failed to update social media' };
     }
   };
 
   const deleteSocialMedia = async (id) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const filteredSocials = config.socialMediaLinks.filter(social => social.id !== id);
-      
-      const newConfig = {
-        ...config,
-        socialMediaLinks: filteredSocials
-      };
-      
-      saveConfig(newConfig);
-      setLoading(false);
+      await apiService.deleteSocialMedia(id);
+      await loadConfig();
       return { success: true };
     } catch (error) {
+      console.error('Failed to delete social media:', error);
+      return { success: false, error: error.message || 'Failed to delete social media' };
+    } finally {
       setLoading(false);
-      return { success: false, error: 'Failed to delete social media' };
     }
   };
 
   // Shop settings update
   const updateShopSettings = async (settings) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const newConfig = {
-        ...config,
-        ...settings
-      };
-      
-      saveConfig(newConfig);
-      setLoading(false);
-      return { success: true };
+      const response = await apiService.updateShopSettings(settings);
+      await loadConfig();
+      return { success: true, settings: response };
     } catch (error) {
+      console.error('Failed to update shop settings:', error);
+      return { success: false, error: error.message || 'Failed to update shop settings' };
+    } finally {
       setLoading(false);
-      return { success: false, error: 'Failed to update shop settings' };
+    }
+  };
+
+  // File upload functions
+  const uploadImage = async (file) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
+    try {
+      const response = await apiService.uploadImage(file);
+      return { success: true, imageUrl: response.imageUrl, publicId: response.publicId };
+    } catch (error) {
+      console.error('Failed to upload image:', error);
+      return { success: false, error: error.message || 'Failed to upload image' };
+    }
+  };
+
+  const uploadImages = async (files) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
+    try {
+      const response = await apiService.uploadImages(files);
+      return { success: true, images: response.images };
+    } catch (error) {
+      console.error('Failed to upload images:', error);
+      return { success: false, error: error.message || 'Failed to upload images' };
+    }
+  };
+
+  const uploadVideo = async (file) => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
+    try {
+      const response = await apiService.uploadVideo(file);
+      return { success: true, videoUrl: response.videoUrl, publicId: response.publicId };
+    } catch (error) {
+      console.error('Failed to upload video:', error);
+      return { success: false, error: error.message || 'Failed to upload video' };
+    }
+  };
+
+  // Enhanced: Media deletion function
+  const deleteMedia = async (publicId, resourceType = 'image') => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    
+    try {
+      const response = await apiService.deleteMedia(publicId, resourceType);
+      return { success: true, ...response };
+    } catch (error) {
+      console.error('Failed to delete media:', error);
+      return { success: false, error: error.message || 'Failed to delete media' };
     }
   };
 
   const value = {
-    config,
-    loading,
-    // Products
+    config: config || getDefaultConfig(),
+    loading: loading || authLoading,
+    dashboardData,
     addProduct,
     updateProduct,
     deleteProduct,
-    // Categories
     addCategory,
     updateCategory,
     deleteCategory,
-    // Farms
     addFarm,
     updateFarm,
     deleteFarm,
-    // Social Media
     addSocialMedia,
     updateSocialMedia,
     deleteSocialMedia,
-    // Shop Settings
-    updateShopSettings
+    updateShopSettings,
+    uploadImage,
+    uploadImages,
+    uploadVideo,
+    deleteMedia, // New function added
+    loadConfig,
+    loadDashboard
   };
 
   return (

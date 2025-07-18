@@ -1,7 +1,8 @@
+// src/pages/admin/CategoriesManager.jsx
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Tag, Plus, Edit, Trash2, Search } from 'lucide-react';
-import { useAdmin } from '../../contexts/AdminContext';
+import { useAdmin } from '../../hooks/useAdmin';
 
 const CategoriesManager = () => {
   const { config, addCategory, updateCategory, deleteCategory, loading } = useAdmin();
@@ -16,7 +17,7 @@ const CategoriesManager = () => {
     reset
   } = useForm();
 
-  const filteredCategories = config.categories.filter(category =>
+  const filteredCategories = (config?.categories || []).filter(category =>
     category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     category.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -43,7 +44,10 @@ const CategoriesManager = () => {
 
   const handleDeleteCategory = async (categoryId) => {
     if (window.confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
-      await deleteCategory(categoryId);
+      const result = await deleteCategory(categoryId);
+      if (!result.success) {
+        alert(result.error || 'Failed to delete category');
+      }
     }
   };
 
@@ -58,12 +62,27 @@ const CategoriesManager = () => {
     if (result.success) {
       setIsModalOpen(false);
       reset();
+    } else {
+      alert(result.error || 'Failed to save category');
     }
   };
 
   const getProductCount = (categoryName) => {
-    return config.products.filter(product => product.category === categoryName).length;
+    return (config?.products || []).filter(product => product.category === categoryName).length;
   };
+
+  if (!config) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="animate-pulse">
+            <div className="h-6 bg-gray-200 rounded w-1/4 mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
