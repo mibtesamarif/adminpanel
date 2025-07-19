@@ -1,9 +1,15 @@
-// src/services/api.js
+// Optimized API Service with Request Deduplication and Caching
+
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
+    // Request deduplication map
+    this.pendingRequests = new Map();
+    // Simple cache for GET requests
+    this.cache = new Map();
+    this.cacheTimeout = 30000; // 30 seconds
   }
 
   // Get auth token from localStorage
@@ -35,7 +41,17 @@ class ApiService {
     };
   }
 
-  // Generic API request method
+  // Generate cache key
+  getCacheKey(endpoint, options = {}) {
+    return `${endpoint}_${JSON.stringify(options)}`;
+  }
+
+  // Check if cache is valid
+  isCacheValid(cacheEntry) {
+    return cacheEntry && (Date.now() - cacheEntry.timestamp) < this.cacheTimeout;
+  }
+
+  // Generic API request method with deduplication and caching
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
     const config = {
@@ -43,6 +59,53 @@ class ApiService {
       ...options
     };
 
+    // Create unique request key for deduplication
+    const requestKey = `${options.method || 'GET'}_${url}_${JSON.stringify(config.body || {})}`;
+    
+    // For GET requests, check cache first
+    if (!options.method || options.method === 'GET') {
+      const cacheKey = this.getCacheKey(endpoint, options);
+      const cachedData = this.cache.get(cacheKey);
+      
+      if (this.isCacheValid(cachedData)) {
+        console.log(`Cache hit for ${endpoint}`);
+        return cachedData.data;
+      }
+    }
+
+    // Check if the same request is already in progress
+    if (this.pendingRequests.has(requestKey)) {
+      console.log(`Deduplicating request for ${endpoint}`);
+      return this.pendingRequests.get(requestKey);
+    }
+
+    // Create the request promise
+    const requestPromise = this.executeRequest(url, config, endpoint, options);
+    
+    // Store the promise to deduplicate identical requests
+    this.pendingRequests.set(requestKey, requestPromise);
+
+    try {
+      const result = await requestPromise;
+      
+      // Cache GET requests
+      if (!options.method || options.method === 'GET') {
+        const cacheKey = this.getCacheKey(endpoint, options);
+        this.cache.set(cacheKey, {
+          data: result,
+          timestamp: Date.now()
+        });
+      }
+
+      return result;
+    } finally {
+      // Remove from pending requests
+      this.pendingRequests.delete(requestKey);
+    }
+  }
+
+  // Execute the actual request
+  async executeRequest(url, config, endpoint, options) {
     try {
       const response = await fetch(url, config);
       
@@ -53,6 +116,8 @@ class ApiService {
         if (response.status === 401) {
           // Unauthorized - token might be expired or invalid
           localStorage.removeItem('admin_token');
+          // Clear cache on auth error
+          this.clearCache();
           throw new Error('Access token required');
         }
         
@@ -61,9 +126,27 @@ class ApiService {
 
       return await response.json();
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error(`API request failed for ${endpoint}:`, error);
       throw error;
     }
+  }
+
+  // Clear cache (useful for logout or auth errors)
+  clearCache() {
+    this.cache.clear();
+    console.log('API cache cleared');
+  }
+
+  // Clear specific cache entries
+  clearCacheForEndpoint(endpoint) {
+    const keysToDelete = [];
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(endpoint)) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach(key => this.cache.delete(key));
+    console.log(`Cache cleared for ${endpoint}`);
   }
 
   // Public API request method (no auth required)
@@ -74,6 +157,26 @@ class ApiService {
       ...options
     };
 
+    // Use same deduplication logic for public requests
+    const requestKey = `PUBLIC_${options.method || 'GET'}_${url}_${JSON.stringify(config.body || {})}`;
+    
+    if (this.pendingRequests.has(requestKey)) {
+      console.log(`Deduplicating public request for ${endpoint}`);
+      return this.pendingRequests.get(requestKey);
+    }
+
+    const requestPromise = this.executePublicRequest(url, config, endpoint);
+    this.pendingRequests.set(requestKey, requestPromise);
+
+    try {
+      return await requestPromise;
+    } finally {
+      this.pendingRequests.delete(requestKey);
+    }
+  }
+
+  // Execute public request
+  async executePublicRequest(url, config, endpoint) {
     try {
       const response = await fetch(url, config);
       
@@ -84,14 +187,15 @@ class ApiService {
 
       return await response.json();
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error(`Public API request failed for ${endpoint}:`, error);
       throw error;
     }
   }
 
   // Auth endpoints
   async login(credentials) {
-    // Login should not require auth headers
+    // Clear cache on login
+    this.clearCache();
     return this.publicRequest('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials)
@@ -103,10 +207,13 @@ class ApiService {
   }
 
   async updateProfile(profileData) {
-    return this.request('/auth/profile', {
+    const result = await this.request('/auth/profile', {
       method: 'PUT',
       body: JSON.stringify(profileData)
     });
+    // Clear cache after profile update
+    this.clearCacheForEndpoint('/auth');
+    return result;
   }
 
   async changePassword(passwordData) {
@@ -123,7 +230,6 @@ class ApiService {
 
   // Configuration
   async getConfig() {
-    // This is a public endpoint
     return this.publicRequest('/config');
   }
 
@@ -132,10 +238,14 @@ class ApiService {
   }
 
   async updateShopSettings(settings) {
-    return this.request('/admin/shop-settings', {
+    const result = await this.request('/admin/shop-settings', {
       method: 'PUT',
       body: JSON.stringify(settings)
     });
+    // Clear config cache after update
+    this.clearCacheForEndpoint('/admin/config');
+    this.clearCacheForEndpoint('/config');
+    return result;
   }
 
   // Products
@@ -148,136 +258,181 @@ class ApiService {
     });
     const queryString = searchParams.toString();
     
-    // This is a public endpoint
     return this.publicRequest(`/products${queryString ? `?${queryString}` : ''}`);
   }
 
   async getProduct(id) {
-    // This is a public endpoint
     return this.publicRequest(`/products/${id}`);
   }
 
   async createProduct(productData) {
-    return this.request('/products', {
+    const result = await this.request('/products', {
       method: 'POST',
       body: JSON.stringify(productData)
     });
+    // Clear related caches
+    this.clearCacheForEndpoint('/products');
+    this.clearCacheForEndpoint('/admin/config');
+    this.clearCacheForEndpoint('/admin/dashboard');
+    return result;
   }
 
   async updateProduct(id, productData) {
-    return this.request(`/products/${id}`, {
+    const result = await this.request(`/products/${id}`, {
       method: 'PUT',
       body: JSON.stringify(productData)
     });
+    // Clear related caches
+    this.clearCacheForEndpoint('/products');
+    this.clearCacheForEndpoint('/admin/config');
+    this.clearCacheForEndpoint('/admin/dashboard');
+    return result;
   }
 
   async deleteProduct(id) {
-    return this.request(`/products/${id}`, {
+    const result = await this.request(`/products/${id}`, {
       method: 'DELETE'
     });
+    // Clear related caches
+    this.clearCacheForEndpoint('/products');
+    this.clearCacheForEndpoint('/admin/config');
+    this.clearCacheForEndpoint('/admin/dashboard');
+    return result;
   }
 
   async bulkUpdateProducts(data) {
-    return this.request('/admin/products/bulk-update', {
+    const result = await this.request('/admin/products/bulk-update', {
       method: 'POST',
       body: JSON.stringify(data)
     });
+    // Clear related caches
+    this.clearCacheForEndpoint('/products');
+    this.clearCacheForEndpoint('/admin/config');
+    this.clearCacheForEndpoint('/admin/dashboard');
+    return result;
   }
 
   // Categories
   async getCategories() {
-    // This is a public endpoint
     return this.publicRequest('/categories');
   }
 
   async getCategory(id) {
-    // This is a public endpoint
     return this.publicRequest(`/categories/${id}`);
   }
 
   async createCategory(categoryData) {
-    return this.request('/categories', {
+    const result = await this.request('/categories', {
       method: 'POST',
       body: JSON.stringify(categoryData)
     });
+    // Clear related caches
+    this.clearCacheForEndpoint('/categories');
+    this.clearCacheForEndpoint('/admin/config');
+    return result;
   }
 
   async updateCategory(id, categoryData) {
-    return this.request(`/categories/${id}`, {
+    const result = await this.request(`/categories/${id}`, {
       method: 'PUT',
       body: JSON.stringify(categoryData)
     });
+    // Clear related caches
+    this.clearCacheForEndpoint('/categories');
+    this.clearCacheForEndpoint('/admin/config');
+    return result;
   }
 
   async deleteCategory(id) {
-    return this.request(`/categories/${id}`, {
+    const result = await this.request(`/categories/${id}`, {
       method: 'DELETE'
     });
+    // Clear related caches
+    this.clearCacheForEndpoint('/categories');
+    this.clearCacheForEndpoint('/admin/config');
+    return result;
   }
+
+  // Similar pattern for Farms and Social Media...
+  // (Following same cache clearing pattern)
 
   // Farms
   async getFarms() {
-    // This is a public endpoint
     return this.publicRequest('/farms');
   }
 
   async getFarm(id) {
-    // This is a public endpoint
     return this.publicRequest(`/farms/${id}`);
   }
 
   async createFarm(farmData) {
-    return this.request('/farms', {
+    const result = await this.request('/farms', {
       method: 'POST',
       body: JSON.stringify(farmData)
     });
+    this.clearCacheForEndpoint('/farms');
+    this.clearCacheForEndpoint('/admin/config');
+    return result;
   }
 
   async updateFarm(id, farmData) {
-    return this.request(`/farms/${id}`, {
+    const result = await this.request(`/farms/${id}`, {
       method: 'PUT',
       body: JSON.stringify(farmData)
     });
+    this.clearCacheForEndpoint('/farms');
+    this.clearCacheForEndpoint('/admin/config');
+    return result;
   }
 
   async deleteFarm(id) {
-    return this.request(`/farms/${id}`, {
+    const result = await this.request(`/farms/${id}`, {
       method: 'DELETE'
     });
+    this.clearCacheForEndpoint('/farms');
+    this.clearCacheForEndpoint('/admin/config');
+    return result;
   }
 
   // Social Media
   async getSocialMedia() {
-    // This is a public endpoint
     return this.publicRequest('/social-media');
   }
 
   async getSocialMediaLink(id) {
-    // This is a public endpoint
     return this.publicRequest(`/social-media/${id}`);
   }
 
   async createSocialMedia(socialData) {
-    return this.request('/social-media', {
+    const result = await this.request('/social-media', {
       method: 'POST',
       body: JSON.stringify(socialData)
     });
+    this.clearCacheForEndpoint('/social-media');
+    this.clearCacheForEndpoint('/admin/config');
+    return result;
   }
 
   async updateSocialMedia(id, socialData) {
-    return this.request(`/social-media/${id}`, {
+    const result = await this.request(`/social-media/${id}`, {
       method: 'PUT',
       body: JSON.stringify(socialData)
     });
+    this.clearCacheForEndpoint('/social-media');
+    this.clearCacheForEndpoint('/admin/config');
+    return result;
   }
 
   async deleteSocialMedia(id) {
-    return this.request(`/social-media/${id}`, {
+    const result = await this.request(`/social-media/${id}`, {
       method: 'DELETE'
     });
+    this.clearCacheForEndpoint('/social-media');
+    this.clearCacheForEndpoint('/admin/config');
+    return result;
   }
 
-  // File Upload
+  // File Upload (no caching needed)
   async uploadImage(file) {
     const formData = new FormData();
     formData.append('image', file);
@@ -293,6 +448,7 @@ class ApiService {
       
       if (response.status === 401) {
         localStorage.removeItem('admin_token');
+        this.clearCache();
         throw new Error('Access token required');
       }
       
@@ -319,6 +475,7 @@ class ApiService {
       
       if (response.status === 401) {
         localStorage.removeItem('admin_token');
+        this.clearCache();
         throw new Error('Access token required');
       }
       
@@ -343,6 +500,7 @@ class ApiService {
       
       if (response.status === 401) {
         localStorage.removeItem('admin_token');
+        this.clearCache();
         throw new Error('Access token required');
       }
       

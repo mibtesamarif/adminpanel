@@ -1,3 +1,5 @@
+// Updated App.jsx with Performance Monitor
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -12,6 +14,7 @@ import FarmsManager from './pages/admin/FarmsManager';
 import SocialMediaManager from './pages/admin/SocialMediaManager';
 import ShopSettings from './pages/admin/ShopSettings';
 import ProfileSettings from './pages/admin/ProfileSettings';
+import PerformanceMonitor from './components/debug/PerformanceMonitor';
 import './App.css';
 
 function App() {
@@ -36,6 +39,9 @@ function App() {
                 <Route path="profile" element={<ProfileSettings />} />
               </Route>
             </Routes>
+            
+            {/* Performance Monitor - only shows in development */}
+            <PerformanceMonitor />
           </div>
         </Router>
       </AdminProvider>

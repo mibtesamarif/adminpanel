@@ -1,4 +1,5 @@
-// src/pages/admin/Dashboard.jsx
+// Complete Dashboard.jsx - Clean and Functional
+
 import React, { useEffect } from 'react';
 import { Package, Tag, MapPin, Share2, TrendingUp, Users } from 'lucide-react';
 import { useAdmin } from '../../hooks/useAdmin';
@@ -6,12 +7,30 @@ import { useAdmin } from '../../hooks/useAdmin';
 const Dashboard = () => {
   const { config, dashboardData, loading, loadDashboard } = useAdmin();
 
+  // Only trigger manual dashboard load if we have config but no dashboard data
   useEffect(() => {
-    // Refresh dashboard data when component mounts
-    if (loadDashboard) {
+    if (config && !dashboardData && !loading && loadDashboard) {
+      console.log('🚀 Dashboard: Loading dashboard data');
       loadDashboard();
     }
-  }, [loadDashboard]);
+  }, [config, dashboardData, loading]); // Removed loadDashboard from deps to prevent loops
+
+  // Manual refresh function
+  const handleRefresh = () => {
+    if (loadDashboard) {
+      console.log('🔄 Dashboard: Manual refresh triggered');
+      loadDashboard();
+    }
+  };
+
+  // Debug logging
+  console.log('🔍 Dashboard State:', {
+    hasConfig: !!config,
+    hasDashboardData: !!dashboardData,
+    loading,
+    configProducts: config?.products?.length || 0,
+    configCategories: config?.categories?.length || 0
+  });
 
   if (loading || !config) {
     return (
@@ -40,40 +59,54 @@ const Dashboard = () => {
 
   // Calculate stats from config data (fallback if API doesn't provide stats)
   const calculateStats = () => {
+    const products = config.products || [];
+    const categories = config.categories || [];
+    const farms = config.farms || [];
+    const socialLinks = config.socialMediaLinks || [];
+    const popularProducts = products.filter(p => p.popular || p.is_popular) || [];
+    
+    console.log('📊 Calculating stats from config:', {
+      products: products.length,
+      categories: categories.length,
+      farms: farms.length,
+      socialLinks: socialLinks.length,
+      popularProducts: popularProducts.length
+    });
+
     return [
       {
         name: 'Total Products',
-        value: config.products?.length || 0,
+        value: products.length,
         icon: Package,
         color: 'bg-blue-500'
       },
       {
         name: 'Categories',
-        value: config.categories?.length || 0,
+        value: categories.length,
         icon: Tag,
         color: 'bg-green-500'
       },
       {
         name: 'Farms',
-        value: config.farms?.length || 0,
+        value: farms.length,
         icon: MapPin,
         color: 'bg-purple-500'
       },
       {
         name: 'Social Links',
-        value: config.socialMediaLinks?.length || 0,
+        value: socialLinks.length,
         icon: Share2,
         color: 'bg-pink-500'
       },
       {
         name: 'Popular Products',
-        value: config.products?.filter(p => p.popular || p.is_popular)?.length || 0,
+        value: popularProducts.length,
         icon: TrendingUp,
         color: 'bg-yellow-500'
       },
       {
         name: 'Active Pages',
-        value: config.pages?.length || 0,
+        value: config.pages?.length || 5, // Default to 5 if no pages defined
         icon: Users,
         color: 'bg-indigo-500'
       }
@@ -126,8 +159,16 @@ const Dashboard = () => {
     ) : 
     calculateStats();
 
-  const recentProducts = dashboardData?.recentProducts || config.products?.slice(0, 5) || [];
-  const popularProducts = dashboardData?.popularProducts || config.products?.filter(p => p.popular || p.is_popular) || [];
+  // Use data from dashboard API or fallback to config
+  const recentProducts = dashboardData?.recentProducts || config.products?.slice(-5).reverse() || [];
+  const popularProducts = dashboardData?.popularProducts || 
+                         config.products?.filter(p => p.popular || p.is_popular) || [];
+
+  console.log('📈 Dashboard data:', {
+    stats: stats.map(s => `${s.name}: ${s.value}`),
+    recentProducts: recentProducts.length,
+    popularProducts: popularProducts.length
+  });
 
   return (
     <div className="space-y-6">
@@ -138,15 +179,42 @@ const Dashboard = () => {
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
             <p className="text-gray-600">Welcome back! Here's what's happening with your shop.</p>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
-              <span className="text-2xl">{config.shopInfo?.logo || '🌿'}</span>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">{config.shopInfo?.name}</p>
-              <p className="text-xs text-gray-500">{config.shopInfo?.description}</p>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={handleRefresh}
+              className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-600 rounded"
+            >
+              Refresh Data
+            </button>
+            <div className="flex items-center space-x-2">
+              <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
+                <span className="text-2xl">{config.shopInfo?.logo || '🌿'}</span>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">
+                  {config.shopInfo?.name || 'Your Shop'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {config.shopInfo?.description || 'Shop description'}
+                </p>
+              </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Data Source Indicator */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${dashboardData ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+            <span className="text-blue-800">
+              Data source: {dashboardData ? 'Dashboard API' : 'Configuration fallback'}
+            </span>
+          </div>
+          <span className="text-blue-600">
+            Last updated: {new Date().toLocaleTimeString()}
+          </span>
         </div>
       </div>
 
@@ -176,7 +244,9 @@ const Dashboard = () => {
         <div className="bg-white rounded-lg shadow">
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">Recent Products</h3>
-            <p className="text-sm text-gray-500">Latest products added to your shop</p>
+            <p className="text-sm text-gray-500">
+              Latest products ({recentProducts.length} found)
+            </p>
           </div>
           <div className="p-6">
             <div className="space-y-4">
@@ -184,16 +254,20 @@ const Dashboard = () => {
                 recentProducts.map((product) => (
                   <div key={product.id} className="flex items-center space-x-4">
                     <div className="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <img
-                        src={product.image || product.image_url}
-                        alt={product.name}
-                        className="h-8 w-8 rounded object-cover"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'block';
-                        }}
-                      />
-                      <span className="text-lg hidden">📦</span>
+                      {product.image || product.image_url ? (
+                        <img
+                          src={product.image || product.image_url}
+                          alt={product.name}
+                          className="h-8 w-8 rounded object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'block';
+                          }}
+                        />
+                      ) : null}
+                      <span className={`text-lg ${product.image || product.image_url ? 'hidden' : ''}`}>
+                        📦
+                      </span>
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">{product.name}</p>
@@ -212,7 +286,9 @@ const Dashboard = () => {
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 text-center py-4">No products yet</p>
+                <p className="text-gray-500 text-center py-4">
+                  No products found. Add some products to see them here.
+                </p>
               )}
             </div>
           </div>
@@ -222,7 +298,9 @@ const Dashboard = () => {
         <div className="bg-white rounded-lg shadow">
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">Popular Products</h3>
-            <p className="text-sm text-gray-500">Products marked as popular</p>
+            <p className="text-sm text-gray-500">
+              Products marked as popular ({popularProducts.length} found)
+            </p>
           </div>
           <div className="p-6">
             <div className="space-y-4">
@@ -230,16 +308,20 @@ const Dashboard = () => {
                 popularProducts.map((product) => (
                   <div key={product.id} className="flex items-center space-x-4">
                     <div className="h-10 w-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <img
-                        src={product.image || product.image_url}
-                        alt={product.name}
-                        className="h-8 w-8 rounded object-cover"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'block';
-                        }}
-                      />
-                      <span className="text-lg hidden">📦</span>
+                      {product.image || product.image_url ? (
+                        <img
+                          src={product.image || product.image_url}
+                          alt={product.name}
+                          className="h-8 w-8 rounded object-cover"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'block';
+                          }}
+                        />
+                      ) : null}
+                      <span className={`text-lg ${product.image || product.image_url ? 'hidden' : ''}`}>
+                        ⭐
+                      </span>
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">{product.name}</p>
@@ -253,7 +335,9 @@ const Dashboard = () => {
                   </div>
                 ))
               ) : (
-                <p className="text-gray-500 text-center py-4">No popular products yet</p>
+                <p className="text-gray-500 text-center py-4">
+                  No popular products yet. Mark some products as popular to see them here.
+                </p>
               )}
             </div>
           </div>
